@@ -13,4 +13,5 @@ name = "check"
 path = "src/bin/check.rs"
 
 [dependencies]
+colored = "3.0.0"
 

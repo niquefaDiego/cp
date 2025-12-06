@@ -3,7 +3,8 @@ use {
         env,
         fs::File,
         io::{Read}
-    }
+    },
+    colored::Colorize
 };
 
 const TEST_DATA_DIR: &str = "./data/";
@@ -51,7 +52,7 @@ fn validate(test_case: &String) -> Option<()> {
             panic!("{}-th token did not match. Expected \"{}\" but got \"{}\"", i, expected[i], output[i]);
         }
     }
-    println!("-> Correct! {} tokens match!", expected.len());
+    println!("{}", format!("-> Correct! {} tokens match!", expected.len()).green().bold());
     Some(())
 }
 
