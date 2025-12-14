@@ -2,15 +2,19 @@
 name = "cp"
 version = "0.1.0"
 edition = "2024"
-default-run = "solution"
+default-run = "run"
 
 [[bin]]
-name = "solution"
-path = "src/main.rs"
+name = "run"
+path = "src/bin/run.rs"
 
 [[bin]]
 name = "check"
 path = "src/bin/check.rs"
+
+[[bin]]
+name = "new"
+path = "src/bin/new.rs"
 
 [dependencies]
 colored = "3.0.0"

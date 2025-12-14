@@ -49,7 +49,8 @@ fn validate(test_case: &String) -> Option<()> {
     }
     for i in 0..expected.len() {
         if expected[i] != output[i] {
-            panic!("{}-th token did not match. Expected \"{}\" but got \"{}\"", i, expected[i], output[i]);
+            panic!("{}-th token did not match. Expected \"{}\" but got \"{}\"",
+                i, expected[i], output[i]);
         }
     }
     println!("{}", format!("-> Correct! {} tokens match!", expected.len()).green().bold());
