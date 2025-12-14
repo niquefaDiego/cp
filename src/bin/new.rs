@@ -2,9 +2,10 @@ use {
     std::{
         env,
         ffi::{OsString},
-        process::{ExitCode, Command, Stdio},
+        fs,
+        io::{self, BufRead},
+        process::{Command, ExitCode, Stdio},
         path::{Path},
-        fs
     },
     colored::Colorize
 };
@@ -94,7 +95,7 @@ fn ensure_dir(dir_path: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn write_file(file_path: &Path, content: &'static str) -> Result<(), String> {
+fn write_file(file_path: &Path, content: &str) -> Result<(), String> {
     if let Err(error) = fs::write(file_path, content) {
         let msg = format!("Error writing file {:?}.\n{}", file_path, error.to_string());
         return Err(msg);
@@ -103,11 +104,54 @@ fn write_file(file_path: &Path, content: &'static str) -> Result<(), String> {
     Ok(())
 }
 
-fn create_file(file_path: &Path, content: &'static str) -> Result<(), String> {
+fn create_file(file_path: &Path, content: &str) -> Result<(), String> {
     if file_path.is_file() {
         return Err(format!("File {:?} already exists", file_path));
     }
     write_file(file_path, content)
+}
+
+fn read_cf_samples_from_console(data_dir: &Path) -> Result<(),String> {
+    println!("Copy and paste the sample test cases from codeforces");
+    let stdin = io::stdin();
+    let handle = stdin.lock();
+    let mut content = String::from("");
+    let mut case_id = 0;
+    let mut is_input = true;
+    for line in handle.lines() {
+        let line = match line {
+            Ok(line) => line,
+            Err(error) => {
+                let msg = format!("Error reading line: {}", error.to_string());
+                eprintln!("{}", msg.red());
+                continue;
+            }
+        };
+        if line == "InputCopy" { }
+        else if line == "=" || line == "OutputCopy" || line == "Note" {
+            let file_name = match is_input {
+                true => {
+                    format!("{}.in", case_id)
+                },
+                false => {
+                    case_id += 1;
+                    format!("{}.ans", case_id-1)
+                }
+            };
+            let file_path = data_dir.join(file_name);
+            create_file(&file_path, &content)?;
+            content.clear();
+            is_input = !is_input;
+            if line == "Note" {
+                println!("Done reading sample test cases!");
+                break;
+            }
+        } else {
+            content += &line;
+            content += "\n";
+        } 
+    }
+    Ok(())
 }
 
 fn create_workspace(args: &CommandLineArgs) -> Result<(), String> {
@@ -117,7 +161,7 @@ fn create_workspace(args: &CommandLineArgs) -> Result<(), String> {
         return Err(format!("The path {:?} already exit as a file", args.directory));
     }
     ensure_dir(&dir)?;
-    let cases_dir = dir.join("cases");
+    let cases_dir = dir.join("data");
     ensure_dir(&cases_dir)?;
     match args.language {
         Language::C => {
@@ -155,20 +199,24 @@ fn create_workspace(args: &CommandLineArgs) -> Result<(), String> {
             write_file(&main_file, TEMPLATE_RUST)?;
         }
     }
+    read_cf_samples_from_console(&cases_dir)?;
     Ok(())
 }
 
 fn main() -> ExitCode {
+
     let args = match parse_command_line_args() {
         Ok(args) => args,
-        Err(msg) => {
-            let msg = format!("Error parsing command line arguments: {}", msg);
+        Err(error) => {
+            let msg = format!("Error parsing command line arguments: {}", error);
             eprintln!("{}", msg.bold().red());
             return ExitCode::FAILURE;
         }
     };
+
     if let Err(error) = create_workspace(&args) {
-        eprintln!("{}", error.bold().red());
+        let msg = format!("Error creating workspace: {}", error);
+        eprintln!("{}", msg.bold().red());
         return ExitCode::FAILURE;
     }
     ExitCode::SUCCESS

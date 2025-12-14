@@ -7,7 +7,7 @@ fn solve()
 }
 
 fn main() {
-    let ntc: usize = read_line();
+    let ntc: usize = line();
     for _ in 0..ntc { solve(); }
 }
 
@@ -26,7 +26,7 @@ fn next<T: FromStr>() -> T where T::Err: Debug {
 }
 
 #[allow(dead_code)]
-fn read_to_buffer() {
+fn buffer() {
     LINE.with_borrow_mut(|line| {
         line.clear();
         io::stdin().read_line(line)
@@ -38,14 +38,14 @@ fn read_to_buffer() {
 }
 
 #[allow(dead_code)]
-fn read_line<T: FromStr>() -> T where T::Err: Debug {
+fn line<T: FromStr>() -> T where T::Err: Debug {
     let mut line: String = String::new();
     io::stdin().read_line(&mut line).unwrap();
     line.trim().to_string().parse().unwrap()
 }
 
 #[allow(dead_code)]
-fn read_vec<T: FromStr>() -> Vec<T> where T::Err: Debug {
+fn vec<T: FromStr>() -> Vec<T> where T::Err: Debug {
     let mut line: String = String::new();
     io::stdin().read_line(&mut line).unwrap();
     line.split_ascii_whitespace()
