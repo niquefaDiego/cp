@@ -7,7 +7,7 @@ use {
     colored::Colorize
 };
 
-const TEST_DATA_DIR: &str = "./data/";
+const TEST_DATA_DIR: &str = "./";
 
 fn get_file(file_name: String) -> Option<File> {
     let file_path = String::from(TEST_DATA_DIR) + &file_name;

@@ -1,11 +1,10 @@
-use {
-    std::{
+use { std::{
         env,
         ffi::{OsString},
         fs,
         io::{self, BufRead},
         process::{Command, ExitCode, Stdio},
-        path::{Path},
+        path::{Path, PathBuf},
     },
     colored::Colorize
 };
@@ -14,14 +13,24 @@ const TEMPLATE_C: &str = include_str!("../../notebook/templates/main.c");
 const TEMPLATE_RUST: &str = include_str!("../../notebook/templates/main.rs");
 
 #[derive(Copy,Clone,Debug)]
-enum Language {
+pub enum Language {
     C,
     Rust
 }
 
-struct CommandLineArgs {
-    directory: OsString,
+pub struct CommandLineArgs {
+    directory: PathBuf,
     language: Language 
+}
+
+// TODO: move to Workspace struct
+impl CommandLineArgs {
+    pub fn main_file(&self) -> &'static str {
+        match self.language {
+            Language::C => "main.c",
+            Language::Rust => "src/main.rs"
+        }
+    }
 }
 
 fn parse_command_line_args() -> Result<CommandLineArgs, String> {
@@ -80,7 +89,7 @@ fn parse_command_line_args() -> Result<CommandLineArgs, String> {
         None => Language::Rust
     };
     Ok(CommandLineArgs {
-        directory: directory,
+        directory: PathBuf::from(directory),
         language: language
     })
 }
@@ -134,6 +143,9 @@ fn read_cf_samples_from_console(data_dir: &Path) -> Result<(),String> {
                     format!("{}.in", case_id)
                 },
                 false => {
+                    let out_file = format!("{}.out", case_id);
+                    let out_file = data_dir.join(&out_file);
+                    create_file(&out_file, "")?;
                     case_id += 1;
                     format!("{}.ans", case_id-1)
                 }
@@ -161,8 +173,6 @@ fn create_workspace(args: &CommandLineArgs) -> Result<(), String> {
         return Err(format!("The path {:?} already exit as a file", args.directory));
     }
     ensure_dir(&dir)?;
-    let cases_dir = dir.join("data");
-    ensure_dir(&cases_dir)?;
     match args.language {
         Language::C => {
             let main_file = dir.join("main.c");
@@ -199,12 +209,41 @@ fn create_workspace(args: &CommandLineArgs) -> Result<(), String> {
             write_file(&main_file, TEMPLATE_RUST)?;
         }
     }
-    read_cf_samples_from_console(&cases_dir)?;
+    read_cf_samples_from_console(&dir)?;
+    Ok(())
+}
+
+fn start_nvim(args: &CommandLineArgs) -> Result<(), String> {
+    if let Err(error) = env::set_current_dir(&args.directory) {
+        let msg = format!(
+            "Could not change directory to {:?}: {}",
+            args.directory,
+            error.to_string());
+        return Err(msg);
+    }
+    let mut nvim_command = Command::new("nvim");
+    let nvim_command = nvim_command
+        .arg(args.main_file())
+        .arg("0.in")
+        .arg("0.ans")
+        .arg("0.out");
+    let mut nvim_command = match nvim_command.spawn() {
+        Ok(cmd) => cmd,
+        Err(error) => return Err(error.to_string())
+    };
+    match nvim_command.wait() {
+        Ok(code) => {
+            if !code.success() {
+                let msg = format!("nvim failed with status code {}", code);
+                return Err(msg);
+            }
+        },
+        Err(error) => return Err(error.to_string())
+    }
     Ok(())
 }
 
 fn main() -> ExitCode {
-
     let args = match parse_command_line_args() {
         Ok(args) => args,
         Err(error) => {
@@ -219,5 +258,12 @@ fn main() -> ExitCode {
         eprintln!("{}", msg.bold().red());
         return ExitCode::FAILURE;
     }
+
+    if let Err(error) = start_nvim(&args) {
+        let msg = format!("Error opening workspace with nvim: {}", error);
+        eprintln!("{}", msg.bold().red());
+        return ExitCode::FAILURE;
+    }
+
     ExitCode::SUCCESS
 }

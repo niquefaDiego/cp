@@ -12,7 +12,6 @@ fn main() {
 }
 
 // --------------- Boilerplate code ---------------
-// Input 
 thread_local! {
     pub static LINE: RefCell<String> = RefCell::new(String::new());
     pub static TOKENS: RefCell<SplitAsciiWhitespace<'static>> = RefCell::new("".split_ascii_whitespace());
