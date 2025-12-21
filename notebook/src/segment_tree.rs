@@ -1,5 +1,3 @@
-use std::ops::{Add};
-
 pub struct SegTree<T> {
     fr: usize,
     to: usize,
@@ -9,7 +7,7 @@ pub struct SegTree<T> {
 }
 
 impl<T> SegTree<T>
-where T: Clone + Add<Output=T> + Copy + Default
+where T: Clone + std::ops::Add<Output=T> + Copy + Default
 {
     pub fn new(fr: usize, to: usize, initial_value: T) -> SegTree<T> {
         debug_assert!(fr <= to);
