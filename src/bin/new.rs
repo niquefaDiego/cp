@@ -9,8 +9,8 @@ use { std::{
     colored::Colorize
 };
 
-const TEMPLATE_C: &str = include_str!("../../notebook/templates/main.c");
-const TEMPLATE_RUST: &str = include_str!("../../notebook/templates/main.rs");
+const TEMPLATE_C: &str = include_str!("../../templates/main.c");
+const TEMPLATE_RUST: &str = include_str!("../../templates/main.rs");
 
 #[derive(Copy,Clone,Debug)]
 pub enum Language {

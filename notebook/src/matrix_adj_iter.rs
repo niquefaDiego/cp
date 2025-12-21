@@ -1,13 +1,11 @@
-#![allow(dead_code)]
-
 // Iterator for adjcent cells in a matrix
 const N_DIRS: usize = 4;
 const DI: [i32; N_DIRS] = [-1, 1, 0, 0 ];
 const DJ: [i32; N_DIRS] = [ 0, 0, -1, 1 ];
 
-struct MatrixAdjIter { i: usize, j: usize, h: usize, w: usize, iter: usize }
+pub struct MatrixAdjIter { i: usize, j: usize, h: usize, w: usize, iter: usize }
 
-fn matrix_adj<T>(a: &Vec<Vec<T>>, i: usize, j: usize) -> MatrixAdjIter {
+pub fn matrix_adj<T>(a: &Vec<Vec<T>>, i: usize, j: usize) -> MatrixAdjIter {
     MatrixAdjIter { i, j, h: a.len(), w: a[0].len(), iter: 0 }
 }
 
