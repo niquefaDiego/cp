@@ -1,25 +1,40 @@
-use { std::{
+use {
+    std::{
         env,
-        ffi::{OsString},
         fs,
+        fmt,
         io::{self, BufRead},
         process::{Command, ExitCode, Stdio},
         path::{Path, PathBuf},
     },
-    colored::Colorize
+    colored::Colorize,
+    clap::{Parser, ValueEnum}
 };
 
 const TEMPLATE_C: &str = include_str!("../../templates/main.c");
 const TEMPLATE_RUST: &str = include_str!("../../templates/main.rs");
 
-#[derive(Copy,Clone,Debug)]
+#[derive(Copy, Clone, Debug, Parser, ValueEnum)]
 pub enum Language {
     C,
     Rust
 }
 
-pub struct CommandLineArgs {
+impl fmt::Display for Language {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        write!(f, "{:?}", self)
+    }
+}
+
+/// Create a new workspace for problem solving.
+#[derive(Parser, Debug)]
+#[command(version, about, long_about=None)]
+struct CommandLineArgs {
+    /// Directory in which to create the workspace.
+    #[arg(value_name="directory")]
     directory: PathBuf,
+    /// Programming language.
+    #[arg(value_name="language", default_value="rust")]
     language: Language 
 }
 
@@ -33,73 +48,10 @@ impl CommandLineArgs {
     }
 }
 
-fn parse_command_line_args() -> Result<CommandLineArgs, String> {
-    let raw_args: Vec<OsString> = env::args_os().collect();
-    let mut directory: Option<OsString> = None;
-    let mut language: Option<OsString> = None;
-    let mut positional_args: Vec<OsString> = Vec::new();
-    let mut i: usize = 1; // skip first argument
-    while i < raw_args.len() {
-        match raw_args[i].to_str() {
-            Some("-d") | Some("--dir") | Some("--directory") => {
-                if directory != None {
-                    return Err("Specified directory more than once".to_string());
-                }
-                directory = Some(raw_args[i+1].clone());
-                i += 1;
-            },
-            Some("-l") | Some("--lang") | Some("--language") => {
-                if language != None {
-                    return Err("Specified language more than once".to_string());
-                }
-                language = Some(raw_args[i+1].clone());
-                i += 1;
-            },
-            Some(positional_arg) => {
-                positional_args.push(OsString::from(positional_arg));
-            }
-            None => {
-                return Err(format!("Could not parse argument \"{:?}\"", raw_args[i]));
-            }
-        }
-        i += 1;
-    }
-    if positional_args.len() > 2 {
-        return Err("Too many positional arguments, maximum 2: directory and language".to_string());
-    }
-    for arg in positional_args {
-        if directory == None { directory = Some(arg); }
-        else if language == None { language = Some(arg); }
-        else { return Err("Too many positional arguments".to_string()); }
-    }
-    let directory = match directory {
-        Some(directory) => directory,
-        None => return Err("Directory argument missing. \
-            Use -d/--dir/--directory or give it as positional argument".to_string())
-    };
-    let language = match language {
-        Some(language) => {
-            let parsed_language = language.to_string_lossy().to_ascii_lowercase();
-            match parsed_language.as_str() {
-                "c" => Language::C,
-                "rs" | "rust" => Language::Rust,
-                _ => return Err(format!("Invalid language {:?}", language))
-            }
-        },
-        None => Language::Rust
-    };
-    Ok(CommandLineArgs {
-        directory: PathBuf::from(directory),
-        language: language
-    })
-}
-
 fn ensure_dir(dir_path: &Path) -> Result<(), String> {
     if let Err(error) = fs::create_dir_all(&dir_path) {
         let msg = format!("Could not create directory {:?}.\n{}", dir_path, error.to_string());
         return Err(msg);
-    } else {
-        println!("Ensured directory {:?}", dir_path);
     }
     Ok(())
 }
@@ -121,12 +73,16 @@ fn create_file(file_path: &Path, content: &str) -> Result<(), String> {
 }
 
 fn read_cf_samples_from_console(data_dir: &Path) -> Result<(),String> {
-    println!("Copy and paste the sample test cases from codeforces");
+    let msg = "Copy and paste the problem from Codeforces and then press enter \
+             (Ctrl-A + Ctrl-C in the browser, then Ctrl-V + <Enter> here)";
+    println!("{}", String::from(msg).cyan());
     let stdin = io::stdin();
     let handle = stdin.lock();
     let mut content = String::from("");
     let mut case_id = 0;
     let mut is_input = true;
+    let mut cases_reached = false;
+    let mut cases_finished = false;
     for line in handle.lines() {
         let line = match line {
             Ok(line) => line,
@@ -136,7 +92,12 @@ fn read_cf_samples_from_console(data_dir: &Path) -> Result<(),String> {
                 continue;
             }
         };
-        if line == "InputCopy" { }
+        if cases_finished {
+            if line.contains("ITMO University") { break; }
+            continue;
+        }
+        else if line == "InputCopy" { cases_reached = true; }
+        else if !cases_reached { continue; }
         else if line == "=" || line == "OutputCopy" || line == "Note" {
             let file_name = match is_input {
                 true => {
@@ -154,20 +115,19 @@ fn read_cf_samples_from_console(data_dir: &Path) -> Result<(),String> {
             create_file(&file_path, &content)?;
             content.clear();
             is_input = !is_input;
-            if line == "Note" {
-                println!("Done reading sample test cases!");
-                break;
-            }
+            if line == "Note" { cases_finished = true; }
         } else {
             content += &line;
             content += "\n";
-        } 
+        }
     }
+    println!("Done reading sample test cases!");
     Ok(())
 }
 
 fn create_workspace(args: &CommandLineArgs) -> Result<(), String> {
-    println!("Creating workspace {:?}. Language = {:?}", args.directory, args.language);
+    let msg = format!("Creating workspace {:?}. Language = {:?}", args.directory, args.language);
+    println!("{}", msg.cyan());
     let dir = Path::new(&args.directory);
     if dir.is_file() {
         return Err(format!("The path {:?} already exit as a file", args.directory));
@@ -244,14 +204,7 @@ fn start_nvim(args: &CommandLineArgs) -> Result<(), String> {
 }
 
 fn main() -> ExitCode {
-    let args = match parse_command_line_args() {
-        Ok(args) => args,
-        Err(error) => {
-            let msg = format!("Error parsing command line arguments: {}", error);
-            eprintln!("{}", msg.bold().red());
-            return ExitCode::FAILURE;
-        }
-    };
+    let args = CommandLineArgs::parse();
 
     if let Err(error) = create_workspace(&args) {
         let msg = format!("Error creating workspace: {}", error);
